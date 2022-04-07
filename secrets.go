@@ -1,7 +1,6 @@
 package secrets
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 
@@ -50,6 +49,8 @@ func getVaultFromTitle(client connect.Client, title string) (string, error) {
 	return vaults[0].ID, nil
 }
 
+// GetItem gets a 1password item from the 1password connect api server. Options
+// may be passed through the opts parameter.
 func GetItem(itemName string, opts ...Options) (*onepassword.Item, error) {
 	options := getOptions(opts)
 
@@ -68,6 +69,9 @@ func GetItem(itemName string, opts ...Options) (*onepassword.Item, error) {
 	return client.GetItemByTitle(itemName, options.vaultID)
 }
 
+// UnmarshallItem unmarshalls item into `i`. `i` must be a pointer to a struct.
+// The struct should contain exported fields of type int or string that contain
+// the tag "opfield" with the name of the field to be put in the field.
 func UnmarshallItem(item *onepassword.Item, i interface{}) error {
 	configP := reflect.ValueOf(i)
 	if configP.Kind() != reflect.Ptr {
@@ -96,10 +100,10 @@ func UnmarshallItem(item *onepassword.Item, i interface{}) error {
 
 		switch value.Kind() {
 		case reflect.String:
-			val := item.GetValue(fmt.Sprintf("%sEntry", tag))
+			val := item.GetValue(tag)
 			value.SetString(val)
 		case reflect.Int:
-			val := item.GetValue(fmt.Sprintf("%sEntry", tag))
+			val := item.GetValue(tag)
 			v, err := strconv.Atoi(val)
 			if err != nil {
 				return errors.Wrapf(err, "error wrapping %s to int for field %s", val, field.Name)
@@ -113,22 +117,10 @@ func UnmarshallItem(item *onepassword.Item, i interface{}) error {
 	return nil
 }
 
+// LoadItem loads an item and unmarshalls it into `i`. This is equivalent to
+// calling GetItem followed by an UnmarshallItem into `i`.
 func LoadItem(itemName string, i interface{}, opts ...Options) error {
-	options := getOptions(opts)
-
-	client, err := getClient(options)
-	if err != nil {
-		return errors.Wrap(err, "failed to get 1password client")
-	}
-
-	if options.vaultTitle != "" {
-		options.vaultID, err = getVaultFromTitle(client, options.vaultTitle)
-		if err != nil {
-			return err
-		}
-	}
-
-	item, err := client.GetItemByTitle(itemName, options.vaultID)
+	item, err := GetItem(itemName, opts...)
 	if err != nil {
 		return errors.Wrap(err, "error getting item from vault")
 	}
