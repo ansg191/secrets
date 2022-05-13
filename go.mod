@@ -1,4 +1,4 @@
-module golang.anshulg.com/shared/secrets
+module go.anshulg.com/shared/secrets
 
 go 1.18
 
